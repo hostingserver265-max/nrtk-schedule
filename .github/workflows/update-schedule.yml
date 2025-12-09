@@ -1,0 +1,56 @@
+name: Update Schedule
+
+# Когда запускать
+on:
+  schedule:
+    # Каждый день в 07:00 и 13:00 по Москве (04:00 и 10:00 UTC)
+    - cron: '0 4,10 * * *'
+
+  # Можно запустить вручную
+  workflow_dispatch:
+
+  # При пуше в main тоже запускается (для тестирования)
+  push:
+    branches: [ main ]
+
+jobs:
+  update-schedule:
+    runs-on: ubuntu-latest
+
+    steps:
+    # Шаг 1: Клонируем репозиторий
+    - name: 📦 Checkout repository
+      uses: actions/checkout@v3
+
+    # Шаг 2: Устанавливаем Python 3.10
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    # Шаг 3: Устанавливаем зависимости
+    - name: 📚 Install dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements.txt
+
+    # Шаг 4: Запускаем парсер
+    - name: 🚀 Parse schedule
+      run: |
+        python parse_schedule.py
+
+    # Шаг 5: Коммитим изменения (если есть)
+    - name: 💾 Commit and push changes
+      run: |
+        git config --global user.name 'Schedule Bot'
+        git config --global user.email 'bot@nrtk.schedule'
+        git add schedule.json
+
+        # Проверяем есть ли изменения
+        if git diff --staged --quiet; then
+          echo "✅ Изменений нет, расписание актуально"
+        else
+          git commit -m "🔄 Обновление расписания $(date +'%Y-%m-%d %H:%M')"
+          git push
+          echo "✅ Расписание обновлено и загружено!"
+        fi
