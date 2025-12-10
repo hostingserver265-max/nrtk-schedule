@@ -1,0 +1,63 @@
+name: Update Schedule
+
+on:
+  schedule:
+    - cron: '0 4,10 * * *'
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+
+jobs:
+  update-schedule:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 📦 Checkout repository
+      uses: actions/checkout@v3
+
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: 📚 Install dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: 🚀 Parse schedule
+      run: |
+        rm -f schedule.json
+        echo "🗑️ Старый файл schedule.json удален"
+        python parse_schedule.py
+
+    - name: 💾 Commit and push changes
+      run: |
+        git config --global user.name 'Schedule Bot'
+        git config --global user.email 'bot@nrtk.schedule'
+        
+        # Проверяем наличие файла
+        if [ -f schedule.json ]; then
+          git add schedule.json
+          
+          # Проверяем наличие изменений
+          if git diff --staged --quiet; then
+            echo "✅ Изменений нет, расписание не менялось."
+          else
+            # Вычисляем дату заранее, чтобы избежать ошибки с кавычками
+            TIMESTAMP=$(date +'%Y-%m-%d %H:%M')
+            
+            git commit -m "Update schedule $TIMESTAMP"
+            
+            # Синхронизация перед отправкой
+            git pull origin main --rebase
+            git push origin main
+            echo "✅ Расписание успешно обновлено!"
+          fi
+        else
+          echo "❌ ОШИБКА: Файл schedule.json не найден!"
+          exit 1
+        fi
